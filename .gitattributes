@@ -1,0 +1,3 @@
+# Vendored third-party JavaScript (Three.js + its example helpers): exclude from
+# GitHub's language statistics so the language bar reflects this project's own code.
+lib/*.js linguist-vendored

@@ -1,0 +1,12 @@
+# Terrain + imagery tiles are NOT committed; run "node tools/fetch_tiles.mjs" to populate them.
+lib/tiles/
+
+# Local deploy build output; generated, never published.
+deploy/
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+*.log
+node_modules/
+.vercel
