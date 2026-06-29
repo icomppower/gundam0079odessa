@@ -1,5 +1,3 @@
-# Terrain + imagery tiles are NOT committed; run "node tools/fetch_tiles.mjs" to populate them.
-lib/tiles/
 
 # Local deploy build output; generated, never published.
 deploy/
