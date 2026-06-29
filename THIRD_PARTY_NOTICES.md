@@ -1,5 +1,11 @@
 # Third-Party Notices
 
+## Series
+**Narrated History Map Documentary Series**
+Creator: Johnny — https://linkedin.com/in/icomppower/
+
+---
+
 This project bundles and/or fetches third-party software and data. Each retains
 its own license, reproduced or referenced below.
 
