@@ -193,6 +193,7 @@
       <button id="notes-btn"></button>
       <button id="lang-btn" aria-label="Toggle narration language"></button>
       <button id="music-btn" class="off" title="Music" aria-label="Background music">🔇</button>
+      <button id="voice-btn" class="off" title="Voice language" aria-label="Voice language"></button>
       <div class="credit"><a href="https://github.com/keithligh/cinematic-3d-battle-engine" target="_blank" rel="noopener">cinematic-3d-battle-engine</a> by Keith Li (MIT)</div>
     </div>
     <div id="disclaimer"></div>
@@ -231,8 +232,8 @@
   </div>
 
 
-  <!-- Music: Rise of the Iron Vanguard — committed to lib/ -->
-  <audio id="bgm" loop muted preload="auto" src="lib/Rise of the Iron Vanguard.mp3"></audio>
+  <!-- Music: Rise of the Iron Vanguard (lib/rise_of_the_iron_vanguard.mp3; no spaces, they fail to load) -->
+  <audio id="bgm" loop muted preload="auto" src="lib/rise_of_the_iron_vanguard.mp3"></audio>
 
   <div id="boot">
     <div class="bt"></div>
@@ -246,6 +247,7 @@
   <script src="lib/OrbitControls.js"></script>
   <script src="lib/CSS2DRenderer.js"></script>
   <script src="data.js"></script>
+  <script src="voice.js"></script>   <!-- battle layer: voiced bridge radio (EN / yue / ja) -->
   <script type="module" src="app.js"></script>
 </body>
 </html>

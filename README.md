@@ -33,7 +33,8 @@ Tiles load over HTTP — `file://` will not work. Windows: `start.bat` · macOS/
 | `flags.js` | Faction emblems — Sigil of Zeon, E.F.F. emblem |
 | `index.html` | Title, meta, canon-confidence chip CSS |
 | `lib/tiles/` | Committed terrain + imagery tiles (self-contained deploy) |
-| `lib/Rise of the Iron Vanguard.mp3` | Background music |
+| `lib/rise_of_the_iron_vanguard.mp3` | Background music |
+| `voice.js` + `audio/<lang>/odessa/` | Voiced bridge radio (EN / 粵語 / 日本語), battle layer |
 
 Engine modules (`app.js`, `core.js`, `director.js`, etc.) are never edited — see [PLAYBOOK.md](PLAYBOOK.md).
 
