@@ -2,10 +2,10 @@
  *  voice.js — voiced bridge radio for the Big Tray 巴丹號 Bataan (battle layer, not engine).
  *
  *  Plays audio/<lang>/odessa/sNN_NN_<role>.wav (lang = en | yue | ja) for each storyboard shot.
- *  Odessa has no comms clock, so lines run in order through each shot: the first starts shortly
- *  after the camera move begins, each next one after the previous ends, and none starts in the
- *  last second of a shot. Timing is read from the engine's own progress bar, so play / pause /
- *  chapter jumps all follow the tour without touching any engine file.
+ *  Odessa has no comms clock, so lines run in order: each shot's lines join one running queue as the
+ *  shot begins, each plays after the previous ends, and a late line may spill a little into the next
+ *  shot's camera move. Timing is read from the engine's own progress bar, so play / pause / chapter
+ *  jumps all follow the tour without touching any engine file.
  *
  *  Lines marked radio get a Web Audio band-pass (~300–3400 Hz) in code. Missing files are skipped
  *  silently (the subtitle still shows). Subtitles are always 繁中 + English. Audio starts on the
@@ -73,7 +73,10 @@
   const LANGS = ["en", "yue", "ja", "off"];
   const LABEL = { en: "VOICE EN", yue: "語音 粵", ja: "音声 日", off: "VOICE OFF" };
   const KEY = "odessa.voiceLang";
-  const START = 0.8, GAP = 0.45, TAIL = 1.0;   // seconds into a shot / between lines / no new line this close to the shot's end
+  // one running queue across the tour (timings tuned against the real clip lengths in all three languages):
+  // a shot's lines join the queue START s into the shot, play GAP s apart, and a late line may still start up to
+  // SPILL s into the next shot's camera move rather than being dropped.
+  const START = 0.4, GAP = 0.3, SPILL = 2.2;
   const TWEEN = 2.4;                           // must match the engine's CFG.TWEEN
   const pad = n => String(n).padStart(2, "0");
 
@@ -132,7 +135,8 @@
 
   /* ---- the line scheduler, clocked by the engine's progress bar ---- */
   const bar = document.querySelector("#prog > i"), playBtn = document.getElementById("play"), resumeEl = document.getElementById("resume");
-  let shot = -1, row = 0, nextAt = START, cur = null, lastT = -1, wasRunning = false;
+  const CUM = [0]; D.storyboard.forEach((sh, i) => CUM.push(CUM[i] + TWEEN + sh.hold));
+  let shot = -1, queue = [], free = 0, cur = null, lastT = -1, wasRunning = false;
 
   function show(line) {
     sub.querySelector(".w").textContent = line[0] + "  " + (ROLE_EN[line[3]] || "");
@@ -142,17 +146,20 @@
     sub.classList.add("on");
   }
   function finish() { if (el) el.pause(); sub.classList.remove("on"); cur = null; }
+  function enqueue(i, T) {   // shot i's lines, playable from START s into the shot until SPILL s into the next one
+    (LINES[i] || []).forEach((line, k) => queue.push({ i, k, line, from: CUM[i] + START, until: CUM[i + 1] + SPILL }));
+  }
+  function reset(i, T) { finish(); queue = []; free = T; shot = i; if (i < N) enqueue(i, T); }
 
-  function start(i, k, t) {
-    const line = LINES[i][k];
-    const url = `audio/${lang}/odessa/s${pad(i + 1)}_${pad(k + 1)}_${line[3]}.wav`;
-    // subtitle-only fallback length when there is no audio (off, missing, or not yet unlocked)
-    const read = t + Math.max(2.4, line[2].length * 0.065);
-    cur = { t0: t, minEnd: read, read, url, audioDone: true };
-    show(line);
+  function start(q, T) {
+    const url = `audio/${lang}/odessa/s${pad(q.i + 1)}_${pad(q.k + 1)}_${q.line[3]}.wav`;
+    // subtitle-only reading time when there is no audio (off, missing, or not yet unlocked)
+    const read = T + Math.max(2.4, q.line[2].length * 0.065);
+    cur = { minEnd: read, read, url, audioDone: true };
+    show(q.line);
     if (lang !== "off" && AC && !missing.has(url)) {
-      cur.audioDone = false; cur.minEnd = t + 1.2;
-      const now = AC.currentTime, radio = line[4] === 1;
+      cur.audioDone = false; cur.minEnd = T + 1.2;
+      const now = AC.currentTime, radio = q.line[4] === 1;
       dry.gain.setValueAtTime(radio ? 0 : 1, now); wet.gain.setValueAtTime(radio ? 1.25 : 0, now);
       el.src = url; el.play().catch(() => { if (cur) { cur.audioDone = true; cur.minEnd = cur.read; } });
     }
@@ -165,13 +172,14 @@
     const running = playBtn && playBtn.textContent === "⏸" && !(resumeEl && resumeEl.classList.contains("show"));
     if (running !== wasRunning) { wasRunning = running; if (el && cur && !cur.audioDone) { if (running) el.play().catch(() => {}); else el.pause(); } }
     if (!(f >= 0)) return;
-    const i = Math.floor(f), t = f >= N ? 0 : (f - i) * (TWEEN + D.storyboard[Math.min(i, N - 1)].hold);
-    if (i !== shot || t < lastT - 0.05) { finish(); shot = i; row = 0; nextAt = START; }   // new shot, or a jump back
-    lastT = t;
-    if (i >= N || !LINES[i]) return;
-    if (cur && cur.audioDone && t >= cur.minEnd) { finish(); nextAt = t + GAP; }
-    const dur = TWEEN + D.storyboard[i].hold;
-    if (!cur && running && row < LINES[i].length && t >= nextAt && t < dur - TAIL) { start(i, row, t); row++; }
+    const i = Math.min(Math.floor(f), N), T = f >= N ? CUM[N] : CUM[i] + (f - i) * (TWEEN + D.storyboard[i].hold);
+    const jumped = T < lastT - 0.05 || T > lastT + 1.5;          // a chapter jump or restart, not normal playback
+    lastT = T;
+    if (jumped) reset(i, T);
+    else if (i !== shot) { shot = i; if (i < N) enqueue(i, T); }  // natural advance: the playing line carries over
+    if (cur && cur.audioDone && T >= cur.minEnd) { finish(); free = T + GAP; }
+    while (queue.length && T >= queue[0].until) queue.shift();    // too late to start: drop
+    if (!cur && running && queue.length && T >= free && T >= queue[0].from) start(queue.shift(), T);
   }
   requestAnimationFrame(tick);
 })();
